@@ -7058,9 +7058,10 @@ klass:              do {
             js = input.substring(0, optionIndex);
             // 10 chars in ' --options'.
             try {
-                options = eval(input.substr(optionIndex + 10));
+                eval('options = ' + input.substr(optionIndex + 10));
             } catch (ex) {
-                printOutLine('Bad jslint options, did not parse.');
+                printOutLine('Bad jslint options, did not parse: ' + input.substr(optionIndex + 10));
+                printOutLine('Error: ' + ex);
                 quitHost(3);
             }
             options.passfail = false;
