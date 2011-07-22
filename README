@@ -3,6 +3,16 @@ JSLint, The JavaScript Code Quality Tool
 Douglas Crockford
 douglas@crockford.com
 
+2011-07-22
+
+This updated version of jslint.js runs in WScript.exe, Rhino, and Node.js.
+
+It assumes the javascript to be parsed is passed on stdin, and it writes
+all errors to stdout.  jslint options can be passed at the end of the stdin
+stream by including " --options { key: val }" where the keys and values
+within the options json construct are any valid jslint options except "passfail".
+
+
 2011-04-17
 
 jslint.js contains the fully commented JSLINT function.
