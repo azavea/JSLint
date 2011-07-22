@@ -23,6 +23,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+// Modifications by Azavea Copyright (c) 2011 released under the same license.
+
 // WARNING: JSLint will hurt your feelings.
 
 // JSLINT is a global function. It takes two parameters.
@@ -6942,4 +6944,151 @@ klass:              do {
 
     return itself;
 
+}());
+
+// Changes by Azavea:
+
+// These changes were inspired by versions of jslint that had been released
+// customized for Rhino or for windows WScript.  Due to the need to use jslint
+// on multiple platforms, we have written a version that will run in multiple
+// script engines:
+//     WScript
+//     Rhino
+//     Node.js.
+
+// Additionally, you may set options by appending them to the standard input.
+// Pass " --options { key: val }" after the rest of the js to be linted.
+// Note that passfail will always be false.
+
+// Full list of options here: http://www.jslint.com/lint.html#options
+
+(function () {
+    var getInput;
+    var printOutLine;
+    var quitHost;
+    var input;
+    var js, options;
+    var optionIndex;
+
+    // It appears Rhino throws even on an if check, so wrap all checks in exception handling.
+    try {
+        if (WScript) {
+            // Windows script version.
+            getInput = function(callback) {
+                callback(WScript.StdIn.ReadAll());
+            };
+            var printOutLine = function(output) {
+                WScript.StdErr.WriteLine(output);
+            };
+            var quitHost = function(code) {
+                WScript.Quit(code);
+            };
+        }
+    } catch (e) {
+        // Not windows script then.
+    }
+    if (!getInput) {
+        try {
+            if (importPackage) {
+                // Rhino version.
+                getInput = function(callback) {
+                    importPackage(java.io, java.lang);
+                    var stdin = new BufferedReader(new InputStreamReader(System['in']));
+                    var str = '';
+                    var line;
+                    while ((line = stdin.readLine()) || (line === '')) {
+                        str += line + '\n';
+                    }
+                    callback(str);
+                };
+                printOutLine = function(output) {
+                    print(output);
+                };
+                var quitHost = function(code) {
+                    quit(code);
+                };
+            }
+        } catch (e) {
+            // Not rhino then.
+        }
+    }
+    if (!getInput) {
+        try {
+            if (process) {
+                // Node.js version.
+                getInput = function(callback) {
+                    var stdin;
+                    var str = '';
+                    if (process.stdin) {
+                        // Newer versions of node define process.stdin:
+                        process.stdin.resume();
+                        stdin = process.stdin;
+                    } else {
+                        // Older versions of node required you to open it.
+                        stdin = process.openStdin();
+                    }
+                    stdin.setEncoding('utf8');
+                    stdin.on('data', function(chunk) {
+                        str += chunk;
+                    });
+                    stdin.on('end', function(chunk) {
+                        callback(str);
+                    });
+                };
+                printOutLine = function(output) {
+                    process.stdout.write(output + "\n");
+                };
+                var quitHost = function(code) {
+                    process.exit(code);
+                };
+            }
+        } catch (e) {
+            // Not node.js then.
+        }
+    }
+    if (!getInput) {
+        // Not windows script or rhino.
+        throw { message: "Unknown script host." };
+    }
+
+    getInput(function(input) {
+        optionIndex = input.indexOf(' --options');
+
+        if (input && optionIndex > 0) {
+            js = input.substring(0, optionIndex);
+            // 10 chars in ' --options'.
+            try {
+                options = eval(input.substr(optionIndex + 10));
+            } catch (ex) {
+                printOutLine('Bad jslint options, did not parse.');
+                quitHost(3);
+            }
+            options.passfail = false;
+        } else {
+            js = input;
+            options = {passfail: false};
+        }
+
+        if (!JSLINT(js, options)) {
+            if (!JSLINT.errors) {
+                printOutLine("JSLINT failed but had no errors!");
+            } else {
+                for (var x = 0; x < JSLINT.errors.length; x++) {
+                    var e = JSLINT.errors[x];
+                    if(e) { // last object is null
+                        try {
+                            printOutLine('Lint at line ' + ((e.line || e.line === 0) ? e.line : -1) + ' character ' +
+                                ((e.character || e.character === 0) ? e.character : -1) + ': ' + e.reason);
+                            printOutLine((e.evidence || '').replace(/^\s*(\S*(\s+\S+)*)\s*$/, "$1"));
+                        } catch (ex) {
+                            printOutLine('Exception processing lint error.');
+                            quotHost(2);
+                        }
+                    }
+                }
+            }
+            quitHost(1);
+        }
+        quitHost(0);
+    });
 }());
